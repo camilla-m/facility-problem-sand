@@ -1,7 +1,6 @@
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
-
 class SandPod {
     int id, size;
     public SandPod(int id, int size) { this.id = id; this.size = size; }
@@ -34,31 +33,29 @@ class SandNode implements Cloneable {
         return copy;
     }
 }
-
 public class SandBenchmarkComplete {
 
     public static void main(String[] args) throws IOException {
         String filename = "benchmark_final_sand_2026.csv";
         FileWriter writer = new FileWriter(filename);
-        writer.write("Ratio_R;TamanhoPod;TamanhoNode;Execucao;Slot;Pods;Cost_Baseline;Cost_Temporal\n");
+        writer.write("Ratio_R;TamanhoPod;TamanhoNode;Execucao;Slot;Pods;Cost_Baseline;Cost_Temporal;Time_Baseline_ms;Time_Temporal_ms\n");
 
         double[] ratios = {1.0, 10.0, 100.0};
         int[] podSizes = {50, 100, 200, 500, 1000, 5000, 10000};
         int[] nodeSizes = {10, 20, 50, 100, 200};
         
-        int numExecutions = 5; 
+        int numExecutions = 10; 
         int timeSlots = 20;
         Random rand = new Random(42);
 
-        System.out.println("Iniciando Benchmark Completo...");
+        System.out.println("Iniciando Benchmark Completo com Medição de Tempo...");
 
         for (double R : ratios) {
             for (int pSize : podSizes) {
                 for (int nSize : nodeSizes) {
-                    System.out.printf("R=%.1f | Pods=%d | Nodes=%d\n", R, pSize, nSize);
+                    System.out.printf("Processando: R=%.1f | Pods=%d | Nodes=%d\n", R, pSize, nSize);
                     
                     for (int e = 1; e <= numExecutions; e++) {
-                        
                         List<SandNode> baseNodes = new ArrayList<>();
                         for (int i = 0; i < nSize; i++) {
                             double alpha = (i < nSize / 2) ? 20.0 : 250.0; 
@@ -78,19 +75,27 @@ public class SandBenchmarkComplete {
                         Set<Integer> memoryT = new HashSet<>();
 
                         for (int s = 1; s <= timeSlots; s++) {
-                            double variacao = 0.7 + (rand.nextDouble() * 0.6);
+                            double variacao = 0.7 + (rand.nextDouble() * 0.6); 
                             int target = (int)(pSize * variacao);
                             List<SandPod> currentPods = new ArrayList<>();
                             for(int i=0; i < target; i++) currentPods.add(new SandPod(i, 5));
 
+                            long startB = System.nanoTime();
+                            
                             for(SandNode n : nodesB) n.pods.clear();
-                            nodesB.sort(Comparator.comparingDouble(n -> n.alpha));
+                            nodesB.sort(Comparator.comparingDouble(n -> n.alpha)); 
                             for(SandPod p : currentPods) {
                                 for(SandNode n : nodesB) if(n.canFit(p)) { n.pods.put(p.id, p); break; }
                             }
+                            
+                            long timeB_ns = System.nanoTime() - startB;
+                            double timeB_ms = timeB_ns / 1_000_000.0;
+
                             double costB = calculate(nodesB, memoryB);
                             updateMemory(nodesB, memoryB);
 
+                            long startT = System.nanoTime();
+                            
                             for(SandNode n : nodesT) n.pods.clear();
                             final Set<Integer> prevActive = new HashSet<>(memoryT);
                             nodesT.sort((n1, n2) -> {
@@ -101,17 +106,22 @@ public class SandBenchmarkComplete {
                             for(SandPod p : currentPods) {
                                 for(SandNode n : nodesT) if(n.canFit(p)) { n.pods.put(p.id, p); break; }
                             }
+                            
+                            long timeT_ns = System.nanoTime() - startT;
+                            double timeT_ms = timeT_ns / 1_000_000.0;
+
                             double costT = calculate(nodesT, memoryT);
                             updateMemory(nodesT, memoryT);
 
-                            writer.write(R + ";" + pSize + ";" + nSize + ";" + e + ";" + s + ";" + target + ";" + costB + ";" + costT + "\n");
+                            writer.write(R + ";" + pSize + ";" + nSize + ";" + e + ";" + s + ";" + target + ";" + 
+                                         costB + ";" + costT + ";" + timeB_ms + ";" + timeT_ms + "\n");
                         }
                     }
                 }
             }
         }
         writer.close();
-        System.out.println("Benchmark finalizado com sucesso! Arquivo: " + filename);
+        System.out.println("Benchmark finalizado! Arquivo: " + filename);
     }
 
     private static double calculate(List<SandNode> nodes, Set<Integer> prev) {
