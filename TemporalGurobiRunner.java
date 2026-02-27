@@ -203,7 +203,7 @@ public class TemporalGurobiRunner {
             model.optimize();
 
             int status = model.get(GRB.IntAttr.Status);
-            String statusStr = status == GRB.Status.OPTIMAL ? "OPTIMAL_30_GAP" : (status == GRB.Status.INFEASIBLE ? "INFEASIBLE" : "OTHER");
+            String statusStr = status == GRB.Status.OPTIMAL ? "OPTIMAL_1_GAP" : (status == GRB.Status.INFEASIBLE ? "INFEASIBLE" : "OTHER");
             double objVal = -1.0;
             double runtime = model.get(GRB.DoubleAttr.Runtime);
 
